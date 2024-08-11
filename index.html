@@ -11,9 +11,21 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-gesture-handling/dist/leaflet-gesture-handling.min.js"></script>
     <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
+
     <style>
         /* Custom styling for the county labels */
         .county-label {
+            font-size: 12px;
+            color: black;
+            background: white;
+            border-radius: 3px;
+            padding: 2px;
+            border: 1px solid rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        /* Custom styling for the school areas labels */
+        .school-label {
             font-size: 12px;
             color: black;
             background: white;
@@ -141,6 +153,74 @@
             }
         }
     }).addTo(map);
+
+    // Load the TopoJSON data for school boundaries
+    fetch('data/school_boundaries.topojson')
+        .then(response => response.json())
+        .then(topoData => {
+            // Convert TopoJSON to GeoJSON
+            const schoolGeoJSON = topojson.feature(topoData, topoData.objects['school_boundaries']);
+
+            // Add school boundaries to the map
+            L.geoJSON(schoolGeoJSON, {
+                style: function(feature) {
+                    return {
+                        color: '#32CD32',  // Lime green color for school boundaries
+                        weight: 2,
+                        opacity: 0.8
+                    };
+                },
+                onEachFeature: function (feature, layer) {
+                    if (feature.properties && feature.properties.NAME) {
+                        // Use mouseover and mouseout to show/hide popups
+                        layer.on('mouseover', function () {
+                            layer.bindPopup(`<strong>${feature.properties.NAME}</strong>`).openPopup();
+                        });
+                        layer.on('mouseout', function () {
+                            layer.closePopup();
+                        });
+                    }
+                }
+            }).addTo(map);
+        });
+
+    let schoolLayer;
+
+    function updateSchoolMarkers() {
+        const zoomLevel = map.getZoom();
+        if (zoomLevel >= 12) {  // Set the desired zoom level threshold
+            if (!schoolLayer) {
+                // Load the GeoJSON data for public school locations
+                fetch('data/public-school-locations-08-24.geojson')
+                    .then(response => response.json())
+                    .then(schoolData => {
+                        schoolLayer = L.geoJSON(schoolData, {
+                            pointToLayer: function(feature, latlng) {
+                                return L.marker(latlng);
+                            },
+                            onEachFeature: function (feature, layer) {
+                                // Add a popup showing the school name
+                                if (feature.properties && feature.properties.NAME) {
+                                    layer.bindPopup(
+                                        `<strong>${feature.properties.NAME}</strong><br>` +
+                                        `${feature.properties.STREET}<br>` +
+                                        `${feature.properties.CITY}, ${feature.properties.STATE} ${feature.properties.ZIP}`
+                                    );
+                                }
+                            }
+                        }).addTo(map);
+                    });
+            } else {
+                map.addLayer(schoolLayer);
+            }
+        } else if (schoolLayer) {
+            map.removeLayer(schoolLayer);
+        }
+    }
+
+    map.on('zoomend', updateSchoolMarkers);
+
+    updateSchoolMarkers(); // Initial call to load schools based on initial zoom level
 
 </script>
 </body>
