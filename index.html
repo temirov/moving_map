@@ -10,8 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"/>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-gesture-handling/dist/leaflet-gesture-handling.min.js"></script>
-    <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
     <script src="https://unpkg.com/topojson-client@3"></script>
+    <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
 
     <style>
         /* Custom styling for the county labels */
@@ -34,99 +34,174 @@
             border: 1px solid rgba(0, 0, 0, 0.5);
             text-align: center;
         }
+        /* Zoom level display at the bottom of the screen */
+        #zoom-level {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            padding: 5px 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
 <div id="map" style="width: 100%; height: 600px;"></div>
+<div id="zoom-level">Zoom Level: 0</div>
 
 <script>
-    // Initialize the map with gesture handling
+    // 1. Initialize the map with gesture handling
     var map = L.map('map', {
-        attributionControl: false,  // Disable default attribution control
-        gestureHandling: true       // Enable gesture handling for better trackpad support
+        attributionControl: false,
+        gestureHandling: true
     }).fitBounds([
-        [24.396308, -125.0],  // Southwest coordinates (bottom-left corner)
-        [49.384358, -66.93457]  // Northeast coordinates (top-right corner)
+        [24.396308, -125.0],
+        [49.384358, -66.93457]
     ]);
 
-    // Add CartoDB Positron (With Labels) Tile Layer
+    // 2. Add CartoDB Positron (With Labels) Tile Layer
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 18,
         attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
     }).addTo(map);
 
-    // Load the GeoJSON data for U.S. states
-    fetch('https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json')
-        .then(response => response.json())
-        .then(statesData => {
-            // Add state borders to the map
-            L.geoJSON(statesData, {
-                style: function(feature) {
-                    return {
-                        color: '#1E90FF',
-                        weight: 2,
-                        opacity: 0.8
-                    };
-                }
-            }).addTo(map);
-        });
+    // 3. Display zoom level in the debugging rectangle
+    function updateZoomLevel() {
+        document.getElementById('zoom-level').textContent = `Zoom Level: ${map.getZoom()}`;
+    }
+    map.on('zoomend', updateZoomLevel);
+    updateZoomLevel();
 
-    // Load the GeoJSON data for U.S. counties
-    let countiesLayer;
-    fetch('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json')
-        .then(response => response.json())
-        .then(countiesData => {
-            countiesLayer = L.geoJSON(countiesData, {
-                style: function(feature) {
-                    return {
-                        color: '#FF4500',
-                        weight: 1,
-                        opacity: 0.6
-                    };
-                }
-            }).addTo(map);
+    let countiesLayer, schoolDistrictsLayer, schoolLayer;
 
-            // Show labels for counties in view and at an appropriate zoom level
-            map.on('moveend', function() {
-                updateLabels();
-            });
+    // 4. Initialize Web Workers for loading county and school data
+    const stateWorker = new Worker('scripts/stateWorker.js');
+    const countyWorker = new Worker('scripts/countyWorker.js');
+    const districtWorker = new Worker('scripts/schoolDistrictWorker.js');
+    const locationWorker = new Worker('scripts/schoolLocationWorker.js');
 
-            function updateLabels() {
-                // Clear existing labels
-                countiesLayer.eachLayer(function(layer) {
-                    if (layer._tooltip) {
-                        layer.unbindTooltip();
+    // 5. Load State Boundaries
+    stateWorker.onmessage = function(e) {
+        const statesData = e.data.data;
+        L.geoJSON(statesData, {
+            style: function(feature) {
+                return {
+                    color: '#1E90FF',
+                    weight: 2,
+                    opacity: 0.8
+                };
+            }
+        }).addTo(map);
+    };
+
+    // 6. Load County Boundaries
+    countyWorker.onmessage = function(e) {
+        const countiesData = e.data.data;
+        countiesLayer = L.geoJSON(countiesData, {
+            style: function(feature) {
+                return {
+                    color: '#FF4500',
+                    weight: 1,
+                    opacity: 0.6
+                };
+            },
+            onEachFeature: function(feature, layer) {
+                if (map.getZoom() >= 8) {
+                    const name = feature.properties.NAME;
+                    if (name) {
+                        layer.bindTooltip(name, {
+                            permanent: true,
+                            direction: 'center',
+                            className: 'county-label'
+                        }).openTooltip();
                     }
-                });
+                }
+            }
+        }).addTo(map);
+    };
 
-                // Add labels only to visible counties
-                const currentBounds = map.getBounds();
-                const minZoomLevel = 8;  // Adjust the zoom level threshold as needed
-
-                if (map.getZoom() >= minZoomLevel) {
-                    countiesLayer.eachLayer(function(layer) {
-                        const bounds = layer.getBounds();
-                        if (currentBounds.intersects(bounds)) {
-                            const name = layer.feature.properties.NAME;
-                            if (name) {
-                                layer.bindTooltip(name, {
-                                    permanent: true,
-                                    direction: 'center',
-                                    className: 'county-label'
-                                }).openTooltip();
-                            }
-                        }
+    // 7. Load School Districts
+    districtWorker.onmessage = function(e) {
+        const schoolGeoJSON = e.data.data;
+        schoolDistrictsLayer = L.geoJSON(schoolGeoJSON, {
+            style: function(feature) {
+                return {
+                    color: '#32CD32',
+                    weight: 2,
+                    opacity: 0.8
+                };
+            },
+            onEachFeature: function(feature, layer) {
+                if (feature.properties && feature.properties.NAME) {
+                    layer.on('mouseover', function() {
+                        layer.bindPopup(`<strong>${feature.properties.NAME}</strong>`).openPopup();
+                    });
+                    layer.on('mouseout', function() {
+                        layer.closePopup();
                     });
                 }
             }
-
-            updateLabels(); // Initial label display
         });
+        updateSchoolDistricts();
+    };
 
-    // Custom Locate Control with County Zooming
-    L.control.locate({
+    // 8. Load School Locations
+    locationWorker.onmessage = function(e) {
+        const schoolData = e.data.data;
+        schoolLayer = L.geoJSON(schoolData, {
+            pointToLayer: function(feature, latlng) {
+                return L.marker(latlng);
+            },
+            onEachFeature: function(feature, layer) {
+                if (feature.properties && feature.properties.NAME) {
+                    layer.bindPopup(
+                        `<strong>${feature.properties.NAME}</strong><br>` +
+                        `${feature.properties.STREET}<br>` +
+                        `${feature.properties.CITY}, ${feature.properties.STATE} ${feature.properties.ZIP}`
+                    );
+                }
+            }
+        });
+        updateSchoolMarkers();
+    };
+
+    // 9. Update School Districts based on Zoom Level
+    function updateSchoolDistricts() {
+        const zoomLevel = map.getZoom();
+        if (zoomLevel >= 10) {
+            if (schoolDistrictsLayer && !map.hasLayer(schoolDistrictsLayer)) {
+                map.addLayer(schoolDistrictsLayer);
+            }
+        } else if (schoolDistrictsLayer && map.hasLayer(schoolDistrictsLayer)) {
+            map.removeLayer(schoolDistrictsLayer);
+        }
+    }
+
+    // 10. Update School Markers based on Zoom Level
+    function updateSchoolMarkers() {
+        const zoomLevel = map.getZoom();
+        if (zoomLevel >= 10) {
+            if (schoolLayer && !map.hasLayer(schoolLayer)) {
+                map.addLayer(schoolLayer);
+            }
+        } else if (schoolLayer && map.hasLayer(schoolLayer)) {
+            map.removeLayer(schoolLayer);
+        }
+    }
+
+    map.on('zoomend', function() {
+        updateSchoolDistricts();
+        updateSchoolMarkers();
+        updateZoomLevel();
+    });
+
+    // 11. Custom Locate Control with County Zooming
+    var locateControl = L.control.locate({
         position: 'topleft',
-        flyTo: false, // Disable default flyTo behavior
+        flyTo: false,
         icon: 'fa fa-location-arrow',
         iconLoading: 'fa fa-spinner fa-spin',
         showPopup: false,
@@ -137,12 +212,10 @@
         onLocationFound: function(e) {
             var userLatLng = e.latlng;
 
-            // Find the county the user is in by checking their position against the county boundaries
             let countyFound = false;
             countiesLayer.eachLayer(function(layer) {
                 var bounds = layer.getBounds();
                 if (bounds.contains(userLatLng)) {
-                    // Zoom to the found county
                     map.fitBounds(bounds);
                     countyFound = true;
                 }
@@ -154,74 +227,10 @@
         }
     }).addTo(map);
 
-    // Load the TopoJSON data for school boundaries
-    fetch('data/school_boundaries.topojson')
-        .then(response => response.json())
-        .then(topoData => {
-            // Convert TopoJSON to GeoJSON
-            const schoolGeoJSON = topojson.feature(topoData, topoData.objects['school_boundaries']);
-
-            // Add school boundaries to the map
-            L.geoJSON(schoolGeoJSON, {
-                style: function(feature) {
-                    return {
-                        color: '#32CD32',  // Lime green color for school boundaries
-                        weight: 2,
-                        opacity: 0.8
-                    };
-                },
-                onEachFeature: function (feature, layer) {
-                    if (feature.properties && feature.properties.NAME) {
-                        // Use mouseover and mouseout to show/hide popups
-                        layer.on('mouseover', function () {
-                            layer.bindPopup(`<strong>${feature.properties.NAME}</strong>`).openPopup();
-                        });
-                        layer.on('mouseout', function () {
-                            layer.closePopup();
-                        });
-                    }
-                }
-            }).addTo(map);
-        });
-
-    let schoolLayer;
-
-    function updateSchoolMarkers() {
-        const zoomLevel = map.getZoom();
-        if (zoomLevel >= 12) {  // Set the desired zoom level threshold
-            if (!schoolLayer) {
-                // Load the GeoJSON data for public school locations
-                fetch('data/public-school-locations-08-24.geojson')
-                    .then(response => response.json())
-                    .then(schoolData => {
-                        schoolLayer = L.geoJSON(schoolData, {
-                            pointToLayer: function(feature, latlng) {
-                                return L.marker(latlng);
-                            },
-                            onEachFeature: function (feature, layer) {
-                                // Add a popup showing the school name
-                                if (feature.properties && feature.properties.NAME) {
-                                    layer.bindPopup(
-                                        `<strong>${feature.properties.NAME}</strong><br>` +
-                                        `${feature.properties.STREET}<br>` +
-                                        `${feature.properties.CITY}, ${feature.properties.STATE} ${feature.properties.ZIP}`
-                                    );
-                                }
-                            }
-                        }).addTo(map);
-                    });
-            } else {
-                map.addLayer(schoolLayer);
-            }
-        } else if (schoolLayer) {
-            map.removeLayer(schoolLayer);
-        }
-    }
-
-    map.on('zoomend', updateSchoolMarkers);
-
-    updateSchoolMarkers(); // Initial call to load schools based on initial zoom level
-
+    // 12. Trigger Workers to Load Data
+    stateWorker.postMessage({});
+    countyWorker.postMessage({});
+    districtWorker.postMessage({});
+    locationWorker.postMessage({});
 </script>
-</body>
-</html>
+
