@@ -6,35 +6,12 @@
     <title>USA Moving Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
     <link rel="stylesheet" href="https://unpkg.com/leaflet-gesture-handling/dist/leaflet-gesture-handling.min.css"/>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"/>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-gesture-handling/dist/leaflet-gesture-handling.min.js"></script>
-    <script src="https://unpkg.com/topojson-client@3"></script>
-    <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+    <script src="https://cdn.rawgit.com/hayeswise/Leaflet.PointInPolygon/v1.0.0/wise-leaflet-pip.js"></script>
 
     <style>
-        /* Custom styling for the county labels */
-        .county-label {
-            font-size: 12px;
-            color: black;
-            background: white;
-            border-radius: 3px;
-            padding: 2px;
-            border: 1px solid rgba(0, 0, 0, 0.5);
-            text-align: center;
-        }
-        /* Custom styling for the school areas labels */
-        .school-label {
-            font-size: 12px;
-            color: black;
-            background: white;
-            border-radius: 3px;
-            padding: 2px;
-            border: 1px solid rgba(0, 0, 0, 0.5);
-            text-align: center;
-        }
-        /* Zoom level display at the bottom of the screen */
         #zoom-level {
             position: absolute;
             bottom: 10px;
@@ -46,14 +23,34 @@
             font-size: 14px;
             z-index: 1000;
         }
+        .county-label {
+            font-size: 14px;
+            color: #A9A9A9;
+            background-color: transparent;
+            border: none;
+            box-shadow: none;
+            font-weight: bold;
+            text-align: center;
+            pointer-events: none; /* Prevent interaction */
+        }
+        .state-label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #1E90FF;
+            background-color: transparent;
+            border: none;
+            text-align: center;
+            pointer-events: none; /* Prevent interaction */
+            box-shadow: none;
+        }
     </style>
 </head>
 <body>
-<div id="map" style="width: 100%; height: 600px;"></div>
+<div id="map" style="height: 600px;"></div>
 <div id="zoom-level">Zoom Level: 0</div>
 
 <script>
-    // 1. Initialize the map with gesture handling
+    // Initialize the map
     var map = L.map('map', {
         attributionControl: false,
         gestureHandling: true
@@ -62,175 +59,285 @@
         [49.384358, -66.93457]
     ]);
 
-    // 2. Add CartoDB Positron (With Labels) Tile Layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 18,
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
-    }).addTo(map);
-
-    // 3. Display zoom level in the debugging rectangle
+    // Update zoom level display
     function updateZoomLevel() {
         document.getElementById('zoom-level').textContent = `Zoom Level: ${map.getZoom()}`;
     }
     map.on('zoomend', updateZoomLevel);
     updateZoomLevel();
 
-    let countiesLayer, schoolDistrictsLayer, schoolLayer;
+    // Add tile layer
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 18,
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
+    }).addTo(map);
 
-    // 4. Initialize Web Workers for loading county and school data
+    // Initialize layer groups
+    let countiesLayer = L.layerGroup();
+    let statesLayer = L.layerGroup();
+
+    // Initialize Web Workers
     const stateWorker = new Worker('scripts/stateWorker.js');
     const countyWorker = new Worker('scripts/countyWorker.js');
-    const districtWorker = new Worker('scripts/schoolDistrictWorker.js');
-    const locationWorker = new Worker('scripts/schoolLocationWorker.js');
 
-    // 5. Load State Boundaries
+    // Trigger Workers to Load Data
+    stateWorker.postMessage({});
+    countyWorker.postMessage({});
+
+    let countiesLoaded = false;
+
+    // Function to add county labels for counties in view
+    function addCountyLabelsInView() {
+        // Get current map bounds
+        const bounds = map.getBounds();
+
+        countiesLayer.eachLayer(function(layer) {
+            layer.eachLayer(function(memberLayer) {
+              if (bounds.intersects(memberLayer.getBounds())) {
+                    const countyName = memberLayer.feature.properties.NAME + ' County';
+                    layer.bindTooltip(countyName, {
+                        permanent: true,
+                        direction: 'center',
+                        className: 'county-label'
+                    }).openTooltip();
+              }
+            });
+        });
+    }
+
+    // Load County Boundaries
+    countyWorker.onmessage = function(e) {
+        if (e.data.type === 'county') {
+            const countyFeature = e.data.data;
+            const layer = L.geoJSON(countyFeature, {
+                style: function() {
+                    return {
+                        color: '#FF4500',
+                        weight: 1,
+                        opacity: 0.6
+                    };
+                },
+            });
+            countiesLayer.addLayer(layer);
+        } else if (e.data.type === 'complete') {
+            countiesLoaded = true;
+            console.log('All counties loaded.');
+        }
+    };
+
+    // Improved zoomToUserCounty function
+    function zoomToUserCounty(latLng) {
+        console.log('Searching for a county at the coordinates: ', latLng);
+
+        let countyFound = false;
+
+        countiesLayer.eachLayer(function(layer) {
+            layer.eachLayer(function(memberLayer) {
+              if (memberLayer.contains(latLng)) {
+                countyFound = true;
+                console.log(memberLayer.feature.properties);
+                map.fitBounds(memberLayer.getBounds());
+              }
+            });
+        });
+
+        if (!countyFound) {
+            console.log('No county found at these coordinates: ', latLng);
+        }
+    }
+
+    function stateOrTerritoryToAbbreviation(stateOrTerritory) {
+        const usRegionsAbbreviations = {
+            "alabama": "AL",
+            "alaska": "AK",
+            "arizona": "AZ",
+            "arkansas": "AR",
+            "california": "CA",
+            "colorado": "CO",
+            "connecticut": "CT",
+            "delaware": "DE",
+            "florida": "FL",
+            "georgia": "GA",
+            "hawaii": "HI",
+            "idaho": "ID",
+            "illinois": "IL",
+            "indiana": "IN",
+            "iowa": "IA",
+            "kansas": "KS",
+            "kentucky": "KY",
+            "louisiana": "LA",
+            "maine": "ME",
+            "maryland": "MD",
+            "massachusetts": "MA",
+            "michigan": "MI",
+            "minnesota": "MN",
+            "mississippi": "MS",
+            "missouri": "MO",
+            "montana": "MT",
+            "nebraska": "NE",
+            "nevada": "NV",
+            "new hampshire": "NH",
+            "new jersey": "NJ",
+            "new mexico": "NM",
+            "new york": "NY",
+            "north carolina": "NC",
+            "north dakota": "ND",
+            "ohio": "OH",
+            "oklahoma": "OK",
+            "oregon": "OR",
+            "pennsylvania": "PA",
+            "rhode island": "RI",
+            "south carolina": "SC",
+            "south dakota": "SD",
+            "tennessee": "TN",
+            "texas": "TX",
+            "utah": "UT",
+            "vermont": "VT",
+            "virginia": "VA",
+            "washington": "WA",
+            "west virginia": "WV",
+            "wisconsin": "WI",
+            "wyoming": "WY",
+            "american samoa": "AS",
+            "guam": "GU",
+            "northern mariana islands": "MP",
+            "puerto rico": "PR",
+            "u.s. virgin islands": "VI",
+            "district of columbia": "DC"
+        };
+
+        // Convert input to lowercase for case-insensitive lookup
+        const normalizedStateOrTerritory = stateOrTerritory.toLowerCase();
+        return usRegionsAbbreviations[normalizedStateOrTerritory];
+    }
+
+    // Load State Boundaries
     stateWorker.onmessage = function(e) {
         const statesData = e.data.data;
-        L.geoJSON(statesData, {
+        const layer = L.geoJSON(statesData, {
             style: function(feature) {
                 return {
                     color: '#1E90FF',
                     weight: 2,
                     opacity: 0.8
                 };
-            }
-        }).addTo(map);
-    };
-
-    // 6. Load County Boundaries
-    countyWorker.onmessage = function(e) {
-        const countiesData = e.data.data;
-        countiesLayer = L.geoJSON(countiesData, {
-            style: function(feature) {
-                return {
-                    color: '#FF4500',
-                    weight: 1,
-                    opacity: 0.6
-                };
             },
             onEachFeature: function(feature, layer) {
-                if (map.getZoom() >= 8) {
-                    const name = feature.properties.NAME;
-                    if (name) {
-                        layer.bindTooltip(name, {
-                            permanent: true,
-                            direction: 'center',
-                            className: 'county-label'
-                        }).openTooltip();
-                    }
-                }
-            }
-        }).addTo(map);
-    };
-
-    // 7. Load School Districts
-    districtWorker.onmessage = function(e) {
-        const schoolGeoJSON = e.data.data;
-        schoolDistrictsLayer = L.geoJSON(schoolGeoJSON, {
-            style: function(feature) {
-                return {
-                    color: '#32CD32',
-                    weight: 2,
-                    opacity: 0.8
-                };
-            },
-            onEachFeature: function(feature, layer) {
-                if (feature.properties && feature.properties.NAME) {
-                    layer.on('mouseover', function() {
-                        layer.bindPopup(`<strong>${feature.properties.NAME}</strong>`).openPopup();
-                    });
-                    layer.on('mouseout', function() {
-                        layer.closePopup();
-                    });
-                }
+                const stateOrTerritory = feature.properties.name; // Adjust this to the correct property name for the state abbreviation
+                const stateAbbr = stateOrTerritoryToAbbreviation(stateOrTerritory);
+                layer.bindTooltip(stateAbbr, {
+                    permanent: true,
+                    direction: 'center',
+                    className: 'state-label'
+                }).openTooltip();
             }
         });
-        updateSchoolDistricts();
+        statesLayer.addLayer(layer);
+        statesLayer.addTo(map);
     };
 
-    // 8. Load School Locations
-    locationWorker.onmessage = function(e) {
-        const schoolData = e.data.data;
-        schoolLayer = L.geoJSON(schoolData, {
-            pointToLayer: function(feature, latlng) {
-                return L.marker(latlng);
-            },
-            onEachFeature: function(feature, layer) {
-                if (feature.properties && feature.properties.NAME) {
-                    layer.bindPopup(
-                        `<strong>${feature.properties.NAME}</strong><br>` +
-                        `${feature.properties.STREET}<br>` +
-                        `${feature.properties.CITY}, ${feature.properties.STATE} ${feature.properties.ZIP}`
-                    );
-                }
+    // Toggle layers based on zoom level
+    // It guarantees that the right layers are in the view
+    function toggleLayersWhenZoomed() {
+        const currZoom = map.getZoom();
+        if (currZoom >= 10) {
+            if (!map.hasLayer(countiesLayer)) {
+                countiesLayer.addTo(map);
+                addCountyLabelsInView();
             }
-        });
-        updateSchoolMarkers();
-    };
-
-    // 9. Update School Districts based on Zoom Level
-    function updateSchoolDistricts() {
-        const zoomLevel = map.getZoom();
-        if (zoomLevel >= 10) {
-            if (schoolDistrictsLayer && !map.hasLayer(schoolDistrictsLayer)) {
-                map.addLayer(schoolDistrictsLayer);
+            if (map.hasLayer(statesLayer)) {
+                map.removeLayer(statesLayer);
             }
-        } else if (schoolDistrictsLayer && map.hasLayer(schoolDistrictsLayer)) {
-            map.removeLayer(schoolDistrictsLayer);
+        } else {
+            if (map.hasLayer(countiesLayer)) {
+                map.removeLayer(countiesLayer);
+            }
+            if (!map.hasLayer(statesLayer)) {
+                statesLayer.addTo(map);
+            }
         }
     }
+    map.on('zoomend', toggleLayersWhenZoomed);
 
-    // 10. Update School Markers based on Zoom Level
-    function updateSchoolMarkers() {
-        const zoomLevel = map.getZoom();
-        if (zoomLevel >= 10) {
-            if (schoolLayer && !map.hasLayer(schoolLayer)) {
-                map.addLayer(schoolLayer);
+    function toggleInfoWhenMoved() {
+        const currZoom = map.getZoom();
+        if (currZoom >= 10) {
+            if (map.hasLayer(countiesLayer)) {
+                addCountyLabelsInView();
             }
-        } else if (schoolLayer && map.hasLayer(schoolLayer)) {
-            map.removeLayer(schoolLayer);
         }
     }
+    map.on('moveend', toggleInfoWhenMoved);
 
-    map.on('zoomend', function() {
-        updateSchoolDistricts();
-        updateSchoolMarkers();
-        updateZoomLevel();
-    });
-
-    // 11. Custom Locate Control with County Zooming
-    var locateControl = L.control.locate({
-        position: 'topleft',
-        flyTo: false,
-        icon: 'fa fa-location-arrow',
-        iconLoading: 'fa fa-spinner fa-spin',
-        showPopup: false,
-        locateOptions: {
-            maxZoom: 10,
-            enableHighAccuracy: true
+    // Home Control
+    const homeControl = L.Control.extend({
+        options: {
+            position: 'topright'
         },
-        onLocationFound: function(e) {
-            var userLatLng = e.latlng;
+        onAdd: function(map) {
+            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+            container.innerHTML = '<i class="fas fa-home" style="line-height: 1.6; font-size: 20px; padding: 5px;"></i>';
+            container.style.backgroundColor = 'white';
+            container.style.width = '30px';
+            container.style.height = '30px';
+            container.style.cursor = 'pointer';
 
-            let countyFound = false;
-            countiesLayer.eachLayer(function(layer) {
-                var bounds = layer.getBounds();
-                if (bounds.contains(userLatLng)) {
-                    map.fitBounds(bounds);
-                    countyFound = true;
-                }
-            });
+            container.onclick = function(){
+                map.fitBounds([
+                    [24.396308, -125.0],
+                    [49.384358, -66.93457]
+                ]);
+            };
 
-            if (!countyFound) {
-                console.log('No county found for the user location.');
-            }
+            return container;
         }
-    }).addTo(map);
+    });
+    map.addControl(new homeControl());
 
-    // 12. Trigger Workers to Load Data
-    stateWorker.postMessage({});
-    countyWorker.postMessage({});
-    districtWorker.postMessage({});
-    locationWorker.postMessage({});
+    // Locate Control
+    const myLocateControl = L.Control.extend({
+        options: {
+            position: 'topright'
+        },
+        onAdd: function(map) {
+            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+            container.innerHTML = '<i class="fas fa-location-arrow" style="line-height: 1.6; font-size: 20px; padding: 5px;"></i>';
+            container.style.backgroundColor = 'white';
+            container.style.width = '30px';
+            container.style.height = '30px';
+            container.style.cursor = 'pointer';
+
+            container.onclick = function(){
+                map.locate({enableHighAccuracy: true});
+            };
+
+            return container;
+        }
+    });
+    map.addControl(new myLocateControl());
+
+    function onLocationFound(e) {
+        const userLatLng = e.latlng;
+        console.log('User location found:', userLatLng);
+
+        L.circle(userLatLng, 20).addTo(map);
+
+        if (countiesLoaded) {
+            zoomToUserCounty(userLatLng);
+        } else {
+            console.log('Counties are not loaded yet.');
+            map.setView(userLatLng, 10);
+            // Wait for counties to load
+            const checkCountiesLoaded = setInterval(() => {
+                if (countiesLoaded) {
+                    clearInterval(checkCountiesLoaded);
+                    zoomToUserCounty(userLatLng);
+                }
+            }, 1000); // Check every second
+        }
+    }
+    map.on('locationfound', onLocationFound);
 </script>
 
+</body>
+</html>
