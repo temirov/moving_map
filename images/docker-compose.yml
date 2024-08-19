@@ -1,0 +1,26 @@
+services:
+  tileserver:
+    container_name: tileserver
+    image: maptiler/tileserver-gl
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../data:/data  # Map the parent data folder to /data inside the container
+    command: "--verbose"
+
+  nominatim:
+    container_name: nominatim
+    image: mediagis/nominatim:4.4
+    ports:
+      - "8081:8080"  # Nominatim running on port 8081
+    environment:
+      IMPORT_US_POSTCODES: true
+      NOMINATIM_PASSWORD: nominatim
+      POSTGRES_DB: nominatim
+      POSTGRES_USER: nominatim
+      POSTGRES_PASSWORD: nominatim
+      PBF_URL: https://download.geofabrik.de/north-america-latest.osm.pbf  # URL for OSM data
+    volumes:
+      - ../data/src:/var/lib/nominatim  # Mount the OSM data file for Nominatim import
+      - ./nominatim-db:/var/lib/postgresql/data  # Bind mount for PostgreSQL database
+      - ./nominatim-flatnode:/nominatim/flatnode  # Bind mount for flatnode file
