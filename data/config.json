@@ -1,0 +1,18 @@
+{
+  "options": {
+    "paths": {
+      "root": "/data"
+    }
+  },
+  "data": {
+    "us-border": {
+      "mbtiles": "tl_2023_us_border.mbtiles"
+    },
+    "us-states": {
+      "mbtiles": "tl_2023_us_state.mbtiles"
+    },
+    "us-counties": {
+      "mbtiles": "tl_2023_us_county.mbtiles"
+    }
+  }
+}
