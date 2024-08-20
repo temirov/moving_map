@@ -10,11 +10,14 @@ services:
 
   nominatim:
     container_name: nominatim
+    shm_size: '2g' 
     image: mediagis/nominatim:4.4
     ports:
       - "8081:8080"  # Nominatim running on port 8081
     environment:
       IMPORT_US_POSTCODES: true
+      IMPORT_WIKIPEDIA: true
+      IMPORT_TIGER_ADDRESSES: true
       NOMINATIM_PASSWORD: nominatim
       POSTGRES_DB: nominatim
       POSTGRES_USER: nominatim
