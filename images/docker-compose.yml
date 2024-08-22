@@ -6,24 +6,43 @@ services:
       - "8080:8080"
     volumes:
       - ../data:/data  # Map the parent data folder to /data inside the container
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
     command: "--verbose"
 
   nominatim:
     container_name: nominatim
-    shm_size: '2g' 
+    shm_size: '4g'
     image: mediagis/nominatim:4.4
     ports:
       - "8081:8080"  # Nominatim running on port 8081
     environment:
+      THREADS: 16
       IMPORT_US_POSTCODES: true
       IMPORT_WIKIPEDIA: true
       IMPORT_TIGER_ADDRESSES: true
       NOMINATIM_PASSWORD: nominatim
-      POSTGRES_DB: nominatim
-      POSTGRES_USER: nominatim
-      POSTGRES_PASSWORD: nominatim
       PBF_URL: https://download.geofabrik.de/north-america-latest.osm.pbf  # URL for OSM data
+      REPLICATION_URL: https://download.geofabrik.de/north-america-updates/
+      REPLICATION_UPDATE_INTERVAL: "86400"
     volumes:
-      - ../data/src:/var/lib/nominatim  # Mount the OSM data file for Nominatim import
-      - ./nominatim-db:/var/lib/postgresql/data  # Bind mount for PostgreSQL database
-      - ./nominatim-flatnode:/nominatim/flatnode  # Bind mount for flatnode file
+      - type: bind
+        source: ./nominatim-db
+        target: /var/lib/postgresql/14/main
+      - type: bind
+        source: ./nominatim-flatnode
+        target: /nominatim/flatnode
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
