@@ -46,3 +46,20 @@ services:
         source: /etc/timezone
         target: /etc/timezone
         read_only: true
+
+  fontserver:
+    container_name: font-server-with-fonts
+    build:
+      context: ./font-processor  # Adjust this path to where your Dockerfile is located
+      dockerfile: Dockerfile
+    ports:
+      - "8082:80"  # Font server running on port 8082
+    volumes:
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
