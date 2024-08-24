@@ -1,5 +1,6 @@
 {
   "options": {
+    "serveAllFonts": true,
     "paths": {
       "root": "/data",
       "fonts": "/fonts"
