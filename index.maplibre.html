@@ -1,20 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>USA Moving Map</title>
-    <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@4.6.0/dist/maplibre-gl.css'/>
+    <link rel='stylesheet' href='https://unpkg.com/maplibre-gl@4.6.0/dist/maplibre-gl.css' />
     <script src='https://unpkg.com/maplibre-gl@4.6.0/dist/maplibre-gl.js'></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Font Awesome -->
     <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script> <!-- Load turf.js -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap">
     <!-- Load the `maplibre-gl-geocoder` plugin. -->
     <script src="https://unpkg.com/@maplibre/maplibre-gl-geocoder@1.5.0/dist/maplibre-gl-geocoder.min.js"></script>
-    <link
-            rel="stylesheet"
-            href="https://unpkg.com/@maplibre/maplibre-gl-geocoder@1.5.0/dist/maplibre-gl-geocoder.css"
-    />
+    <link rel="stylesheet"
+        href="https://unpkg.com/@maplibre/maplibre-gl-geocoder@1.5.0/dist/maplibre-gl-geocoder.css" />
     <style>
         /* Home button CSS within a control group */
         .maplibre-gl-home {
@@ -36,287 +36,289 @@
         }
     </style>
 </head>
+
 <body>
-<div id='map' style="height: 600px;"></div>
-<script>
-    // Initialize the map
-    const map = new maplibregl.Map({
-      container: 'map',
-      style: {
-        version: 8,
-        sources: {},
-        layers: []
-      },
-      center: [-98.5, 39.5], // Center over the US
-      zoom: 3
-    });
+    <div id='map' style="height: 600px;"></div>
+    <script>
+        // Initialize the map
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {},
+                layers: []
+            },
+            center: [-98.5, 39.5], // Center over the US
+            zoom: 3
+        });
 
-    let userLocation = null; // Variable to store user location
+        let userLocation = null; // Variable to store user location
 
-    // Define the bounds as southwest and northeast coordinates for the US
-    const usBounds = [
-        [-125.0, 24.396308], // Southwest coordinates [longitude, latitude]
-        [-66.93457, 49.384358]  // Northeast coordinates [longitude, latitude]
-    ];
+        // Define the bounds as southwest and northeast coordinates for the US
+        const usBounds = [
+            [-125.0, 24.396308], // Southwest coordinates [longitude, latitude]
+            [-66.93457, 49.384358]  // Northeast coordinates [longitude, latitude]
+        ];
 
-    // Add the Navigation Control for zooming
-    map.addControl(
-        new maplibregl.NavigationControl({
-            visualizePitch: true,
-            showZoom: true,
-            showCompass: false,
-        })
-    );
+        // Add the Navigation Control for zooming
+        map.addControl(
+            new maplibregl.NavigationControl({
+                visualizePitch: true,
+                showZoom: true,
+                showCompass: false,
+            })
+        );
 
-    // Create and Add Home Button with a Font Awesome Home Icon
-    class HomeControl {
-        onAdd(map) {
-            this.map = map;
-            this._container = document.createElement('div');
-            this._container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-            this._container.innerHTML = `
+        // Create and Add Home Button with a Font Awesome Home Icon
+        class HomeControl {
+            onAdd(map) {
+                this.map = map;
+                this._container = document.createElement('div');
+                this._container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+                this._container.innerHTML = `
                 <button class="maplibre-gl-home">
                     <i class="fas fa-home"></i>
                 </button>`;
-            this._container.querySelector('button').onclick = () => {
-                this.map.fire('home'); // Emit 'home' event when clicked
-            };
-            return this._container;
-        }
-
-        onRemove() {
-            this._container.parentNode.removeChild(this._container);
-            this.map = undefined;
-        }
-    }
-
-    map.addControl(new HomeControl(), 'top-left');
-
-    // Handle the 'home' event to define behavior
-    map.on('home', () => {
-        console.log('Home button clicked');
-        home(usBounds);
-    });
-
-    function home(bounds) {
-        map.fitBounds(bounds, {
-            padding: 10,
-            maxZoom: 4, // Fit the entire US within this zoom level
-            duration: 1000
-        });
-    };
-
-    // Add the Geolocate Control with original styling for user's location
-    const geolocateControl = new maplibregl.GeolocateControl({
-        positionOptions: {
-            enableHighAccuracy: true
-        },
-        trackUserLocation: false, // Enable tracking to show user location
-        showUserLocation: true, // Display user's location with default styling
-        fitBoundsOptions: false // Disable automatic zoom
-    });
-
-    map.addControl(geolocateControl);
-
-    map.on('load', function () {
-        // Load the GeoJSON file containing all US counties
-        map.addSource('counties', {
-            "type": "geojson",
-            "data": "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json" // Ensure this URL is correct
-        });
-
-        // Add a layer to display the counties
-        map.addLayer({
-            "id": "counties-layer",
-            "type": "line",
-            "source": "counties",
-
-            "paint": {
-                "line-color": "#0000FF", // Blue outline color
-                "line-width": 2,
-                "line-opacity": 0
-            }
-        });
-
-// Nominatim URL
-    const nominatimServerUrl = 'http://computercat.tyemirov.lan:8081/';
-    // TileServerGL URL
-    const tileServerUrl = 'http://computercat.tyemirov.lan:8080/data/'; // Adjust as needed
-
-    const geocoderApi = {
-        forwardGeocode: async (config) => {
-            const features = [];
-            try {
-                const request = `{nominatimServerUrl}search?q=${config.query}&format=geojson&polygon_geojson=1&addressdetails=1`;
-                const response = await fetch(request);
-                const geojson = await response.json();
-                for (const feature of geojson.features) {
-                    const center = [
-                        feature.bbox[0] +
-                    (feature.bbox[2] - feature.bbox[0]) / 2,
-                        feature.bbox[1] +
-                    (feature.bbox[3] - feature.bbox[1]) / 2
-                    ];
-                    const point = {
-                        type: 'Feature',
-                        geometry: {
-                            type: 'Point',
-                            coordinates: center
-                        },
-                        place_name: feature.properties.display_name,
-                        properties: feature.properties,
-                        text: feature.properties.display_name,
-                        place_type: ['place'],
-                        center
-                    };
-                    features.push(point);
-                }
-            } catch (e) {
-                console.error(`Failed to forwardGeocode with error: ${e}`);
+                this._container.querySelector('button').onclick = () => {
+                    this.map.fire('home'); // Emit 'home' event when clicked
+                };
+                return this._container;
             }
 
-            return {
-                features
-            };
-        }
-    };
-    map.addControl(
-        new MaplibreGeocoder(geocoderApi, {
-            maplibregl
-        })
-    );
-
-    // Add tile layers
-    const layers = {
-      'us-border': {
-        source: {
-          type: 'vector',
-          url: `${tileServerUrl}us-border.json`
-        },
-        layer: {
-          id: 'us-border-layer',
-          type: 'line',
-          source: 'us-border',
-          'source-layer': 'tl_2023_us_border', // Source layer name from your MBTiles
-          paint: { 'line-color': '#ff0000', 'line-width': 2 }
-        }
-      },
-      'us-states': {
-        source: {
-          type: 'vector',
-          url: `${tileServerUrl}us-states.json`
-        },
-        layer: {
-          id: 'us-states-layer',
-          type: 'fill',
-          source: 'us-states',
-          'source-layer': 'tl_2023_us_state', // Source layer name from your MBTiles
-          paint: { 'fill-color': '#00ff00', 'fill-opacity': 0.4 }
-        }
-      },
-      'us-counties': {
-        source: {
-          type: 'vector',
-          url: `${tileServerUrl}us-counties.json`
-        },
-        layer: {
-          id: 'us-counties-layer',
-          type: 'fill',
-          source: 'us-counties',
-          'source-layer': 'tl_2023_us_county', // Source layer name from your MBTiles
-          paint: { 'fill-color': '#0000ff', 'fill-opacity': 0.2 }
-        }
-      }
-    };
-
-        // Load the GeoJSON file containing U.S. states (replace with your own source if needed)
-        map.addSource('states', {
-            "type": "geojson",
-            "data": "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json"
-        });
-
-        // Add a layer to display the states
-        map.addLayer({
-            "id": "states-layer",
-            "type": "line",
-            "source": "states",
-            "paint": {
-                "line-color": "#FF0000", // Red outline color
-                "line-width": 2,
-                "line-opacity": 1 // Initially visible
+            onRemove() {
+                this._container.parentNode.removeChild(this._container);
+                this.map = undefined;
             }
+        }
+
+        map.addControl(new HomeControl(), 'top-left');
+
+        // Handle the 'home' event to define behavior
+        map.on('home', () => {
+            console.log('Home button clicked');
+            home(usBounds);
         });
 
-        // Add a layer to display state labels
-        map.addLayer({
-            "id": "state-labels",
-            "type": "symbol",
-            "source": "states",
-            "layout": {
-                "text-field": ["get", "name"], // Get the state name from the GeoJSON properties
-                "text-size": 14,
-                "text-offset": [0, 0.6],
-                "text-anchor": "top"
+        function home(bounds) {
+            map.fitBounds(bounds, {
+                padding: 10,
+                maxZoom: 4, // Fit the entire US within this zoom level
+                duration: 1000
+            });
+        };
+
+        // Add the Geolocate Control with original styling for user's location
+        const geolocateControl = new maplibregl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: true
             },
-            "paint": {
-                "text-color": "#000000",
-                "text-opacity": 1 // Initially visible
-            }
+            trackUserLocation: false, // Enable tracking to show user location
+            showUserLocation: true, // Display user's location with default styling
+            fitBoundsOptions: false // Disable automatic zoom
         });
 
-        // Listen for the geolocate event and handle it
-        geolocateControl.on('geolocate', function (position) {
-            if (!userLocation) { // Only store location if it's not already stored
-                userLocation = [position.coords.longitude, position.coords.latitude];
-                console.log('User coordinates:', userLocation);
-            } else {
-                console.log('Existing User coordinates:', userLocation);
-            }
+        map.addControl(geolocateControl);
 
-            // Query the counties source to find the county the user is in
-            const features = map.querySourceFeatures('counties');
+        map.on('load', function () {
+            // Load the GeoJSON file containing all US counties
+            map.addSource('counties', {
+                "type": "geojson",
+                "data": "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json" // Ensure this URL is correct
+            });
 
-            let foundCounty = null;
+            // Add a layer to display the counties
+            map.addLayer({
+                "id": "counties-layer",
+                "type": "line",
+                "source": "counties",
 
-            for (const feature of features) {
-                if (turf.booleanPointInPolygon(turf.point(userLocation), feature)) {
-                    foundCounty = feature;
-                    break;
+                "paint": {
+                    "line-color": "#0000FF", // Blue outline color
+                    "line-width": 2,
+                    "line-opacity": 0
                 }
-            }
+            });
 
-            if (foundCounty) {
-                console.log('User is in county:', foundCounty.properties);
+            // Nominatim URL
+            const nominatimServerUrl = 'http://computercat.tyemirov.lan:8081/';
+            // TileServerGL URL
+            const tileServerUrl = 'http://computercat.tyemirov.lan:8080/data/'; // Adjust as needed
 
-                // Zoom to the county by fitting the bounding box
-                const countyBbox = turf.bbox(foundCounty);
-                map.fitBounds(countyBbox, {
-                    padding: 20,
-                    maxZoom: 12, // Maximum zoom level to prevent zooming too far
-                    duration: 1000
-                });
+            const geocoderApi = {
+                forwardGeocode: async (config) => {
+                    const features = [];
+                    try {
+                        const request = `{nominatimServerUrl}search?q=${config.query}&format=geojson&polygon_geojson=1&addressdetails=1`;
+                        const response = await fetch(request);
+                        const geojson = await response.json();
+                        for (const feature of geojson.features) {
+                            const center = [
+                                feature.bbox[0] +
+                                (feature.bbox[2] - feature.bbox[0]) / 2,
+                                feature.bbox[1] +
+                                (feature.bbox[3] - feature.bbox[1]) / 2
+                            ];
+                            const point = {
+                                type: 'Feature',
+                                geometry: {
+                                    type: 'Point',
+                                    coordinates: center
+                                },
+                                place_name: feature.properties.display_name,
+                                properties: feature.properties,
+                                text: feature.properties.display_name,
+                                place_type: ['place'],
+                                center
+                            };
+                            features.push(point);
+                        }
+                    } catch (e) {
+                        console.error(`Failed to forwardGeocode with error: ${e}`);
+                    }
+
+                    return {
+                        features
+                    };
+                }
+            };
+            map.addControl(
+                new MaplibreGeocoder(geocoderApi, {
+                    maplibregl
+                }), 'top-left'
+            );
+
+            // Add tile layers
+            const layers = {
+                'us-border': {
+                    source: {
+                        type: 'vector',
+                        url: `${tileServerUrl}us-border.json`
+                    },
+                    layer: {
+                        id: 'us-border-layer',
+                        type: 'line',
+                        source: 'us-border',
+                        'source-layer': 'tl_2023_us_border', // Source layer name from your MBTiles
+                        paint: { 'line-color': '#ff0000', 'line-width': 2 }
+                    }
+                },
+                'us-states': {
+                    source: {
+                        type: 'vector',
+                        url: `${tileServerUrl}us-states.json`
+                    },
+                    layer: {
+                        id: 'us-states-layer',
+                        type: 'fill',
+                        source: 'us-states',
+                        'source-layer': 'tl_2023_us_state', // Source layer name from your MBTiles
+                        paint: { 'fill-color': '#00ff00', 'fill-opacity': 0.4 }
+                    }
+                },
+                'us-counties': {
+                    source: {
+                        type: 'vector',
+                        url: `${tileServerUrl}us-counties.json`
+                    },
+                    layer: {
+                        id: 'us-counties-layer',
+                        type: 'fill',
+                        source: 'us-counties',
+                        'source-layer': 'tl_2023_us_county', // Source layer name from your MBTiles
+                        paint: { 'fill-color': '#0000ff', 'fill-opacity': 0.2 }
+                    }
+                }
+            };
+
+            // Load the GeoJSON file containing U.S. states (replace with your own source if needed)
+            map.addSource('states', {
+                "type": "geojson",
+                "data": "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json"
+            });
+
+            // Add a layer to display the states
+            map.addLayer({
+                "id": "states-layer",
+                "type": "line",
+                "source": "states",
+                "paint": {
+                    "line-color": "#FF0000", // Red outline color
+                    "line-width": 2,
+                    "line-opacity": 1 // Initially visible
+                }
+            });
+
+            // Add a layer to display state labels
+            map.addLayer({
+                "id": "state-labels",
+                "type": "symbol",
+                "source": "states",
+                "layout": {
+                    "text-field": ["get", "name"], // Get the state name from the GeoJSON properties
+                    "text-size": 14,
+                    "text-offset": [0, 0.6],
+                    "text-anchor": "top"
+                },
+                "paint": {
+                    "text-color": "#000000",
+                    "text-opacity": 1 // Initially visible
+                }
+            });
+
+            // Listen for the geolocate event and handle it
+            geolocateControl.on('geolocate', function (position) {
+                if (!userLocation) { // Only store location if it's not already stored
+                    userLocation = [position.coords.longitude, position.coords.latitude];
+                    console.log('User coordinates:', userLocation);
+                } else {
+                    console.log('Existing User coordinates:', userLocation);
+                }
+
+                // Query the counties source to find the county the user is in
+                const features = map.querySourceFeatures('counties');
+
+                let foundCounty = null;
+
+                for (const feature of features) {
+                    if (turf.booleanPointInPolygon(turf.point(userLocation), feature)) {
+                        foundCounty = feature;
+                        break;
+                    }
+                }
+
+                if (foundCounty) {
+                    console.log('User is in county:', foundCounty.properties);
+
+                    // Zoom to the county by fitting the bounding box
+                    const countyBbox = turf.bbox(foundCounty);
+                    map.fitBounds(countyBbox, {
+                        padding: 20,
+                        maxZoom: 12, // Maximum zoom level to prevent zooming too far
+                        duration: 1000
+                    });
+                } else {
+                    console.log('No county found for this location.');
+                }
+            });
+
+            home(usBounds);
+        });
+
+        // Listen to zoom events
+        map.on('zoom', function () {
+            const zoomLevel = map.getZoom();
+
+            // Check the zoom level and adjust opacity accordingly
+            if (zoomLevel >= 8) {
+                map.setPaintProperty('counties-layer', 'line-opacity', 1); // Make the layer visible
+                map.setPaintProperty('states-layer', 'line-opacity', 0);   // Hide the states layer
             } else {
-                console.log('No county found for this location.');
+                map.setPaintProperty('counties-layer', 'line-opacity', 0); // Make the layer invisible
+                map.setPaintProperty('states-layer', 'line-opacity', 1);   // Show the states layer
             }
         });
 
-        home(usBounds);
-    });
-
-    // Listen to zoom events
-    map.on('zoom', function () {
-        const zoomLevel = map.getZoom();
-
-        // Check the zoom level and adjust opacity accordingly
-        if (zoomLevel >= 8) {
-            map.setPaintProperty('counties-layer', 'line-opacity', 1); // Make the layer visible
-            map.setPaintProperty('states-layer', 'line-opacity', 0);   // Hide the states layer
-        } else {
-            map.setPaintProperty('counties-layer', 'line-opacity', 0); // Make the layer invisible
-            map.setPaintProperty('states-layer', 'line-opacity', 1);   // Show the states layer
-        }
-    });
-
-</script>
+    </script>
 </body>
+
 </html>
