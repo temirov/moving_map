@@ -75,13 +75,13 @@ class TopLeftControls {
 
         // Add Geolocate control
         const geolocateControl = initGeolocateControl(map);
-        container.appendChild(geolocateControl.onAdd(map));
-
         // Set up the geolocate event handling
         setupGeolocateEvent(map, geolocateControl);
 
         // Add Geocoder control
         container.appendChild(geocoderControl.onAdd(map));
+        // Add Geolocate control
+        container.appendChild(geolocateControl.onAdd(map));
 
         return container;
     }
