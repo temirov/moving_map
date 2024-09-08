@@ -1,0 +1,36 @@
+{
+    "env": {
+        "browser": true,
+        "es2021": true
+    },
+    "extends": [
+        "eslint:recommended",
+        "plugin:prettier/recommended"
+    ],
+    "rules": {
+        "indent": [
+            "error",
+            2
+        ], // Enforces 2-space indentation
+        "quotes": [
+            "error",
+            "double"
+        ], // Enforces double quotes
+        "semi": [
+            "error",
+            "always"
+        ], // Ensures semicolons are used
+        "comma-dangle": [
+            "error",
+            "never"
+        ], // No dangling commas
+        "no-multiple-empty-lines": [
+            "error",
+            {
+                "max": 1,
+                "maxEOF": 1,
+                "maxBOF": 0
+            }
+        ] // Enforces a maximum of 1 empty line between code blocks
+    }
+}
