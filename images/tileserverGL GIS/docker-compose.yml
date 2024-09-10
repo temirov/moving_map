@@ -1,0 +1,29 @@
+services:
+  # PostGIS Service
+  postgis:
+    image: postgis/postgis
+    container_name: postgis-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # TileServer GL Service
+  tileserver:
+    image: maptiler/tileserver-gl
+    container_name: tileserver
+    environment:
+      PG_HOST: postgis
+      PG_DATABASE: ${POSTGRES_DB}
+      PG_USER: ${POSTGRES_USER}
+      PG_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./data:/data
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgis
