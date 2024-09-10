@@ -2,3 +2,5 @@
 *.iml
 .DS_Store
 pgdata/
+venv/
+error_log.log
