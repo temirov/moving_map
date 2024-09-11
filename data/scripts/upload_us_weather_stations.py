@@ -2,14 +2,16 @@ import psycopg2
 import logging
 import re
 
-logging.basicConfig(filename='error_log.log', level=logging.ERROR, format='%(asctime)s %(message)s')
-
+logging.basicConfig(
+    filename="error_log.log", level=logging.ERROR, format="%(asctime)s %(message)s"
+)
 
 
 def create_table_if_not_exists(conn):
     """Create the weather_stations table if it doesn't exist."""
     with conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS weather_stations (
                 station_id VARCHAR(11) PRIMARY KEY,
                 latitude FLOAT,
@@ -21,9 +23,11 @@ def create_table_if_not_exists(conn):
                 direction VARCHAR(3),
                 geom GEOMETRY(Point, 4326)
             );
-        """)
+        """
+        )
         conn.commit()
         print("Table 'weather_stations' is ready.")
+
 
 def parse_location_distance_direction(parts):
     """Extract the location description, distance, and direction from the parts."""
@@ -35,11 +39,11 @@ def parse_location_distance_direction(parts):
     if len(parts) > 6:
         last_part = parts[-1]
         second_last_part = parts[-2]
-        
+
         # Regex for detecting distance and direction
-        distance_match = re.match(r'^\d+(\.\d+)?$', second_last_part)
-        direction_match = re.match(r'^[NESW]{1,3}$', last_part)
-        
+        distance_match = re.match(r"^\d+(\.\d+)?$", second_last_part)
+        direction_match = re.match(r"^[NESW]{1,3}$", last_part)
+
         if distance_match and direction_match:
             distance = float(second_last_part)
             direction = last_part
@@ -52,6 +56,7 @@ def parse_location_distance_direction(parts):
     location_description = " ".join(location_parts).strip()
     return location_description, distance, direction
 
+
 def is_valid_float(value):
     """Check if the value can be converted to a float."""
     try:
@@ -60,18 +65,21 @@ def is_valid_float(value):
     except ValueError:
         return False
 
+
 def is_valid_state(value):
     """Check if the state is a valid 2-character state abbreviation."""
     return len(value) == 2
 
+
 def is_valid_us_station(station_id):
     """Check if the station ID belongs to a U.S. station."""
-    return station_id.startswith('US')
+    return station_id.startswith("US")
+
 
 def populate_weather_stations(conn, stations_file):
     """Populate the weather_stations table with U.S. stations data from the given file."""
     with conn.cursor() as cur:
-        with open(stations_file, 'r') as f:
+        with open(stations_file, "r") as f:
             for line_number, line in enumerate(f, start=1):
                 try:
                     # Split the line into parts by spaces
@@ -91,12 +99,17 @@ def populate_weather_stations(conn, stations_file):
                     # Extract the state, location description, distance, and direction
                     state = parts[4]
                     if not is_valid_state(state):
-                        raise ValueError(f"Invalid state value '{state}' at line {line_number}")
+                        raise ValueError(
+                            f"Invalid state value '{state}' at line {line_number}"
+                        )
 
-                    location_description, distance, direction = parse_location_distance_direction(parts)
+                    location_description, distance, direction = (
+                        parse_location_distance_direction(parts)
+                    )
 
                     # Insert into the database, avoiding duplicates
-                    cur.execute("""
+                    cur.execute(
+                        """
                         INSERT INTO weather_stations (station_id, latitude, longitude, elevation, state, location_description, distance, direction, geom)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))
                         ON CONFLICT (station_id) 
@@ -109,29 +122,47 @@ def populate_weather_stations(conn, stations_file):
                             distance = EXCLUDED.distance,
                             direction = EXCLUDED.direction,
                             geom = ST_SetSRID(ST_MakePoint(EXCLUDED.longitude, EXCLUDED.latitude), 4326)
-                    """, (station_id, latitude, longitude, elevation, state, location_description, distance, direction, longitude, latitude))
+                    """,
+                        (
+                            station_id,
+                            latitude,
+                            longitude,
+                            elevation,
+                            state,
+                            location_description,
+                            distance,
+                            direction,
+                            longitude,
+                            latitude,
+                        ),
+                    )
 
                 except ValueError as ve:
                     # Handle parsing errors, e.g., invalid float conversion, invalid state, etc.
-                    logging.error(f"ValueError on line {line_number}: {line.strip()} - {ve}")
+                    logging.error(
+                        f"ValueError on line {line_number}: {line.strip()} - {ve}"
+                    )
                     print(f"Skipping line {line_number} due to value error: {ve}")
 
                 except psycopg2.DatabaseError as de:
                     # Handle database insertion errors, including length constraints
-                    logging.error(f"DatabaseError on line {line_number}: {line.strip()} - {de}")
+                    logging.error(
+                        f"DatabaseError on line {line_number}: {line.strip()} - {de}"
+                    )
                     print(f"Skipping line {line_number} due to database error: {de}")
                     conn.rollback()  # Rollback the transaction if there's a database error
 
                 except Exception as e:
                     # Handle any other errors
-                    logging.error(f"Unexpected error on line {line_number}: {line.strip()} - {e}")
+                    logging.error(
+                        f"Unexpected error on line {line_number}: {line.strip()} - {e}"
+                    )
                     print(f"Skipping line {line_number} due to unexpected error: {e}")
                     conn.rollback()
 
         # Commit all successful inserts
         conn.commit()
         print(f"Weather stations data from {stations_file} has been uploaded.")
-
 
 
 def main(drop_table=False):
@@ -144,7 +175,7 @@ def main(drop_table=False):
 
     # Path to your weather stations file
     STATIONS_FILE = "../src/ghcnd-stations.txt"
-    
+
     """Main function to create the table and upload data."""
     try:
         # Connect to the PostGIS database
@@ -153,7 +184,7 @@ def main(drop_table=False):
             port=DB_PORT,
             database=DB_NAME,
             user=DB_USER,
-            password=DB_PASSWORD
+            password=DB_PASSWORD,
         )
         print("Connected to the PostGIS database.")
 
@@ -172,12 +203,13 @@ def main(drop_table=False):
 
     except Exception as e:
         print(f"Error: {e}")
-    
+
     finally:
         # Close the connection
         if conn:
             conn.close()
             print("Database connection closed.")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main(drop_table=True)  # Set to True if you want to drop the table first
