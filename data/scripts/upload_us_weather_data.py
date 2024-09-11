@@ -4,12 +4,16 @@ import gzip
 import logging
 import os
 
-logging.basicConfig(filename='error_log.log', level=logging.ERROR, format='%(asctime)s %(message)s')
+logging.basicConfig(
+    filename="error_log.log", level=logging.ERROR, format="%(asctime)s %(message)s"
+)
+
 
 def create_table_if_not_exists(conn):
     """Create the weather_observations table if it doesn't exist."""
     with conn.cursor() as cur:
-        cur.execute("""
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS weather_observations (
                 station_id VARCHAR(20),
                 observation_date DATE,
@@ -19,19 +23,23 @@ def create_table_if_not_exists(conn):
                 time_of_observation VARCHAR(4),
                 PRIMARY KEY (station_id, observation_date, observation_type)
             );
-        """)
+        """
+        )
         conn.commit()
         print("Table 'weather_stations' is ready.")
-        
+
+
 def is_valid_us_station(station_id):
     """Check if the station ID belongs to a U.S. station."""
-    return station_id.startswith('US')
+    return station_id.lower().startswith("us")
 
 
 def load_weather_data(conn, data_file):
     """Load weather data into the weather_observations table from the given .csv.gz file."""
     with conn.cursor() as cur:
-        with gzip.open(data_file, 'rt') as f:  # 'rt' opens the file in text mode (after decompression)
+        with gzip.open(
+            data_file, "rt"
+        ) as f:  # 'rt' opens the file in text mode (after decompression)
             reader = csv.reader(f)
             for line_number, row in enumerate(reader, start=1):
                 try:
@@ -46,12 +54,22 @@ def load_weather_data(conn, data_file):
                     time_of_observation = row[7] if len(row) > 7 else None
 
                     # Insert data into the table
-                    cur.execute("""
+                    cur.execute(
+                        """
                         INSERT INTO weather_observations (station_id, observation_date, observation_type, value, flag, time_of_observation)
                         VALUES (%s, %s, %s, %s, %s, %s)
                         ON CONFLICT (station_id, observation_date, observation_type) 
                         DO UPDATE SET value = EXCLUDED.value, flag = EXCLUDED.flag, time_of_observation = EXCLUDED.time_of_observation;
-                    """, (station_id, observation_date, observation_type, value, flag, time_of_observation))
+                    """,
+                        (
+                            station_id,
+                            observation_date,
+                            observation_type,
+                            value,
+                            flag,
+                            time_of_observation,
+                        ),
+                    )
 
                 except ValueError as ve:
                     logging.error(f"ValueError on line {line_number}: {row} - {ve}")
@@ -59,11 +77,14 @@ def load_weather_data(conn, data_file):
                     logging.error(f"DatabaseError on line {line_number}: {row} - {de}")
                     conn.rollback()
                 except Exception as e:
-                    logging.error(f"Unexpected error on line {line_number}: {row} - {e}")
+                    logging.error(
+                        f"Unexpected error on line {line_number}: {row} - {e}"
+                    )
                     conn.rollback()
 
         # Commit all successful inserts
         conn.commit()
+
 
 def main():
     # Database connection details
@@ -81,7 +102,7 @@ def main():
             port=DB_PORT,
             database=DB_NAME,
             user=DB_USER,
-            password=DB_PASSWORD
+            password=DB_PASSWORD,
         )
         print("Connected to the database.")
 
@@ -89,11 +110,11 @@ def main():
         create_table_if_not_exists(conn)
 
         # Folder containing data files
-        data_folder = '../src/'
+        data_folder = "../src/"
 
         # Load weather data from all .csv.gz files in the folder
         for filename in os.listdir(data_folder):
-            if filename.endswith('.csv.gz'):
+            if filename.endswith(".csv.gz"):
                 data_file = os.path.join(data_folder, filename)
                 print(f"Loading data from {data_file}")
                 load_weather_data(conn, data_file)
@@ -109,5 +130,6 @@ def main():
             conn.close()
             print("Database connection closed.")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
