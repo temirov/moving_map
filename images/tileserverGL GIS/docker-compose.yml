@@ -1,7 +1,10 @@
 services:
   # PostGIS Service
   postgis:
-    image: postgis/postgis
+    build:
+      context: ../postgis/
+      dockerfile: Dockerfile
+    image: postgis:utils
     container_name: postgis-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -9,23 +12,42 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./pgdata:/var/lib/postgresql/data
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
     ports:
-      - "5432:5432"
+      - "5432:5432"  # Maps container's port 5432 to host's port 5432
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # TileServer GL Service
   tileserver:
-    image: maptiler/tileserver-gl
+    build:
+      context: ../tileserverGL  # Adjust this path to where your Dockerfile is located
+      dockerfile: Dockerfile
     container_name: tileserver-gl
     environment:
       PG_HOST: postgis
       PG_DATABASE: ${POSTGRES_DB}
       PG_USER: ${POSTGRES_USER}
       PG_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
     ports:
       - "8080:80"
     depends_on:

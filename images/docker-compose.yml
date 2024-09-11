@@ -2,7 +2,7 @@ services:
   tileserver:
     container_name: tileserver
     build:
-      context: ./tilserverGL  # Adjust this path to where your Dockerfile is located
+      context: ./tileserverGL  # Adjust this path to where your Dockerfile is located
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
