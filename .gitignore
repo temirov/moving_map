@@ -4,3 +4,4 @@
 pgdata/
 venv/
 error_log.log
+nominatim-*/
