@@ -1,6 +1,7 @@
-import psycopg2
 import logging
 import re
+
+import psycopg2
 
 logging.basicConfig(
     filename="error_log.log", level=logging.ERROR, format="%(asctime)s %(message)s"
@@ -165,7 +166,7 @@ def populate_weather_stations(conn, stations_file):
         print(f"Weather stations data from {stations_file} has been uploaded.")
 
 
-def main(drop_table=False):
+def main(drop_table: bool = False):
     # Database connection details
     DB_HOST = "localhost"  # Replace with 'postgis' if running inside another container
     DB_PORT = 5432

@@ -1,2 +1,5 @@
 psycopg2
 python-dotenv
+pandas
+matplotlib
+python-dotenv
