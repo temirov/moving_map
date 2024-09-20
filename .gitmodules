@@ -1,0 +1,3 @@
+[submodule "images/pg_tileserv"]
+	path = images/pg_tileserv
+	url = https://github.com/CrunchyData/pg_tileserv
