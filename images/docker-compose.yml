@@ -48,3 +48,66 @@ services:
         source: /etc/timezone
         target: /etc/timezone
         read_only: true
+  
+  # PostGIS Service
+  postgis:
+    container_name: postgis
+    shm_size: '4g'
+    build:
+      context: ./postgis/
+      dockerfile: Dockerfile
+    image: postgis:utils
+    env_file: ../.env
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+    ports:
+      - "5432:5432"  # Maps container's port 5432 to host's port 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  
+  pg_tileserv:
+    container_name: pg_tileserv
+    image: pramsey/pg_tileserv:latest-alpine-3.12
+    build:
+      context: ./pg_tileserv
+      dockerfile: Dockerfile.alpine
+      args:
+        VERSION: latest-alpine-3.12
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgis/${POSTGRES_DB}
+    volumes:
+      - type: bind
+        source: /etc/localtime
+        target: /etc/localtime
+        read_only: true
+      - type: bind
+        source: /etc/timezone
+        target: /etc/timezone
+        read_only: true
+    depends_on:
+      - postgis
+    ports:
+      - 7800:7800
+    
+  nginx:
+    image: nginx:alpine
+    container_name: nginx_server
+    ports:
+      - "8443:443"
+    volumes:
+      - ./nginx/certs:/etc/nginx/certs
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ../frontend/public:/srv  # Mount static files directory
+    restart: unless-stopped
