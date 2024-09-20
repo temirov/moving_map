@@ -11,6 +11,19 @@ DOCKER_IMAGE="postgis:utils"
 host_ip=$(hostname -I | awk '{print $1}')
 TABLE_NAME=us_states
 
+CREATE_INDEX_SQL="CREATE INDEX idx_us_states_geom ON $TABLE_NAME USING GIST (geom);"
+
+# Function to execute SQL commands
+execute_sql() {
+    local sql_command="$1"
+    docker run --rm \
+        --env-file "$ENV_FILE" \
+        -e SQL_COMMAND="$sql_command" \
+        -e host_ip=$host_ip \
+        $DOCKER_IMAGE \
+        sh -c 'PGPASSWORD=$POSTGRES_PASSWORD psql -h $host_ip -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -c "$SQL_COMMAND"'
+}
+
 # Ensure the unzip directory exists
 mkdir -p $UNZIP_DIR
 
@@ -24,6 +37,11 @@ sh -c '/usr/bin/shp2pgsql -I -s 4326 /data/tl_2023_us_state.shp $TABLE_NAME > /d
 # Step 3: Import the SQL file into PostGIS using psql
 docker run --rm --env-file $ENV_FILE -e HOST_IP=$host_ip -v $UNZIP_DIR:/data $DOCKER_IMAGE \
 sh -c 'PGPASSWORD=$POSTGRES_PASSWORD psql -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB -h $HOST_IP < /data/shp2pgsql_output.sql'
+
+# Step 3b: Creating GIST INDEX 
+echo "Indexing the table..."
+execute_sql "$CREATE_INDEX_SQL"
+echo "Indexing completed."
 
 # Step 4: Clean up - delete the unzipped files
 rm -rf $UNZIP_DIR
