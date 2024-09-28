@@ -1,6 +1,7 @@
 import { mapConfig, config } from "./mapConfig.js";
 import { homeControl } from "./homeControl.js";
 import { geolocationControl } from "./geolocationControl.js";
+import { geocoderControl } from "./geocoderControl.js";
 
 const map = new maplibregl.Map(mapConfig);
 
@@ -82,6 +83,7 @@ map.on("load", () => {
   map.addControl(geolocationControl, "top-left");
   // Add the Navigation Control for zooming on the top-right
   map.addControl(navigateControl, "top-right");
+  map.addControl(geocoderControl, "top-right");
 
   home(config.usBounds);
 });
