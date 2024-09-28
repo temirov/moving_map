@@ -2,6 +2,17 @@
 
 ## Backend Setup
 
+### Self-signed certificates
+
+```shell
+sudo apt install mkcert
+mkcert -install
+mkcert computercat localhost computercat.tyemirov.lan $(hostname -I | awk '{print $1}')
+```
+
+Add `~/.local/share/mkcert/rootCA.pem` certificate to your browser.
+Move `computercat+3*.pem` certificates to `images/nginx/certs/`: `mv computercat+3* images/nginx/certs/`
+
 ### Data sources
 
 #### Taxes
