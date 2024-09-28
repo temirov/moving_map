@@ -8,22 +8,22 @@
   },
   "data": {
     "us-border": {
-      "mbtiles": "tl_2023_us_border.mbtiles"
+      "mbtiles": "src/tl_2023_us_border.mbtiles"
     },
     "us-states": {
-      "mbtiles": "tl_2023_us_state.mbtiles"
+      "mbtiles": "src/tl_2023_us_state.mbtiles"
     },
     "us-counties": {
-      "mbtiles": "tl_2023_us_county.mbtiles"
+      "mbtiles": "src/tl_2023_us_county.mbtiles"
     },
     "us-zip-codes": {
-      "mbtiles": "tl_2023_us_zcta520.mbtiles"
+      "mbtiles": "src/tl_2023_us_zcta520.mbtiles"
     },
     "countries": {
-      "mbtiles": "ne_10m_admin_0_countries.mbtiles"
+      "mbtiles": "src/ne_10m_admin_0_countries.mbtiles"
     },
     "us_coastline": {
-      "mbtiles": "tl_2023_us_coastline.mbtiles"
+      "mbtiles": "src/tl_2023_us_coastline.mbtiles"
     }
   }
 }
