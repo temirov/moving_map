@@ -6,3 +6,6 @@ pgdata/
 venv/
 error_log.log
 nominatim-*/
+node_modules/
+fonts/
+data/src
