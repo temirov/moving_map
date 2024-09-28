@@ -1,0 +1,8 @@
+zip_file_path,table_name
+../src/ne_10m_admin_0_countries.zip,country
+../src/tl_2023_06_elsd.zip,us_ca_elementary_school_district
+../src/tl_2023_06_scsd.zip,us_ca_secondary_school_district
+../src/tl_2023_06_unsd.zip,us_ca_unified_school_district
+../src/tl_2023_us_county.zip,us_county
+../src/tl_2023_us_state.zip,us_state
+../src/tl_2023_us_zcta520.zip,us_zipcode

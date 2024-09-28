@@ -27,6 +27,10 @@ def create_table_if_not_exists(conn):
         """
         )
         conn.commit()
+        cur.execute(
+            "CREATE INDEX idx_weather_stations_geom ON weather_stations USING GIST (geom);"
+        )
+        conn.commit()
         print("Table 'weather_stations' is ready.")
 
 

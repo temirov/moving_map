@@ -29,7 +29,7 @@ echo "GeoJSON conversion successful: $GEOJSON"
 
 # Dockerized tippecanoe command to convert GeoJSON to MBTiles with both minimum and maximum zoom levels
 echo "Converting $GEOJSON to $MBTILES using tippecanoe..."
-docker run --rm -v "$(pwd)":/data tippecanoe tippecanoe -o "/data/$MBTILES" --force -zg --layer="$BASENAME" --no-simplification "/data/$GEOJSON"
+docker run --rm -v "$(pwd)":/data tyemirov/tippecanoe tippecanoe -o "/data/$MBTILES" --force -zg --layer="$BASENAME" --no-simplification "/data/$GEOJSON"
 
 # Check if MBTiles conversion was successful
 if [ ! -f "$MBTILES" ]; then
