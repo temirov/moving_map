@@ -8,5 +8,5 @@ error_log.log
 nominatim-*/
 node_modules/
 fonts/
-data/src
-public/dist
+data/src/
+public/dist/
