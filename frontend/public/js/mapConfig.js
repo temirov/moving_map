@@ -1,31 +1,40 @@
 // Define common paths to avoid repetition
 const vectorServer = "https://computercat:8443/pg_tileserv/";
 const fontServer = "https://computercat:8443/tileserver/";
+const nominatimServer = "https://computercat:8443/nominatim/";
 
-// Define the source layers and source names
 const sourceNames = {
-  counties: "us_counties", // Source name for counties in the map
-  countiesCentroids: "us_counties_centroids", // Source name for centroids
+  usCounties: "public.us_counties", // Actual source-layer name for counties
+  usCountiesCentroids: "public.us_counties_centroids", // Actual source-layer name for centroids
+  weatherStations: "public.test_weather_stations",
+  weatherStationsDaysByTempRange: "public.get_ws_days_by_temp_range",
 };
 
 const sourceLayers = {
-  usCounties: "public.us_counties", // Actual source-layer name for counties
-  usCountiesCentroids: "public.us_counties_centroids", // Actual source-layer name for centroids
+  usCounties: "public.us_counties",
+  usCountiesCentroids: "public.us_counties_centroids",
+  weatherStations: "weather_stations_layer",
+  weatherStationsDaysByTempRange: "ws_stations_layer",
 };
 
 // Build the URLs dynamically
-const buildTileUrl = (sourceLayer, props) =>
-  `${vectorServer}/${sourceLayer}/{z}/{x}/{y}.pbf${props}`;
+const buildTileUrl = (sourceName, props) =>
+  `${vectorServer}/${sourceName}/{z}/{x}/{y}.pbf${props}`;
 
 // URL configurations
 const vectorUrls = {
   usCounties: buildTileUrl(
-    sourceLayers.usCounties,
+    sourceNames.usCounties,
     "?properties=namelsad,aland,awater"
   ),
   usCountiesCentroids: buildTileUrl(
-    sourceLayers.usCountiesCentroids,
+    sourceNames.usCountiesCentroids,
     "?properties=county_name"
+  ),
+  weatherStations: buildTileUrl(sourceNames.weatherStations, ""),
+  weatherStationsDaysByTempRange: buildTileUrl(
+    sourceNames.weatherStationsDaysByTempRange,
+    ""
   ),
 };
 
@@ -35,6 +44,11 @@ export const config = {
   vectorSources: {
     usCounties: vectorUrls.usCounties,
     usCountiesCentroids: vectorUrls.usCountiesCentroids,
+    weatherStations: vectorUrls.weatherStations,
+    weatherStationsDaysByTempRange: vectorUrls.weatherStationsDaysByTempRange,
+  },
+  nominatimServer: {
+    url: nominatimServer,
   },
   sourceNames, // Add source names to the config for later use
   sourceLayers, // Add source layers to the config for later use
@@ -50,50 +64,62 @@ export const mapConfig = {
   container: "map",
   style: {
     version: 8,
+    glyphs: config.fontServer,
     sources: {
-      [sourceNames.counties]: {
+      [config.sourceNames.usCounties]: {
         type: "vector",
         tiles: [config.vectorSources.usCounties],
-        minzoom: 0,
+        minzoom: 4,
         maxzoom: 22,
       },
-      [sourceNames.countiesCentroids]: {
+      [config.sourceNames.usCountiesCentroids]: {
         type: "vector",
         tiles: [config.vectorSources.usCountiesCentroids],
-        minzoom: 0,
+        minzoom: 4,
         maxzoom: 22,
       },
-      'carto-light': {
-        'type': 'raster',
-        'tiles': [
+      [config.sourceNames.weatherStations]: {
+        type: "vector",
+        tiles: [config.vectorSources.weatherStations],
+        minzoom: 4,
+        maxzoom: 22,
+      },
+      // [config.sourceNames.weatherStationsDaysByTempRange]: {
+      //   type: "vector",
+      //   tiles: [config.vectorSources.weatherStationsDaysByTempRange],
+      //   minzoom: 4,
+      //   maxzoom: 22,
+      // },
+      "carto-light": {
+        type: "raster",
+        tiles: [
           "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
           "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
           "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-          "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png"
-        ]
+          "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        ],
       },
     },
-    glyphs: config.fontServer,
     layers: [
       {
-        'id': 'carto-light-layer',
-        'source': 'carto-light',
-        'type': 'raster',
-        'minzoom': 0,
-        'maxzoom': 22
+        id: "carto-light-layer",
+        source: "carto-light",
+        type: "raster",
+        minzoom: 4,
+        maxzoom: 22,
       },
       {
         id: "us-counties-layer",
         type: "fill",
-        source: sourceNames.counties, // Use the dynamic source name
-        "source-layer": sourceLayers.usCounties, // Use the source layer from config
+        source: config.sourceNames.usCounties, // Use the dynamic source name
+        "source-layer": config.sourceLayers.usCounties, // Use the source layer from config
         paint: { "fill-color": "#0000ff", "fill-opacity": 0.2 },
       },
       {
         id: "us-counties-label",
         type: "symbol",
-        source: sourceNames.countiesCentroids, // Use the dynamic source name
-        "source-layer": sourceLayers.usCountiesCentroids, // Use the source layer from config
+        source: config.sourceNames.usCountiesCentroids, // Use the dynamic source name
+        "source-layer": config.sourceLayers.usCountiesCentroids, // Use the source layer from config
         minzoom: 8,
         layout: {
           "text-field": ["get", "county_name"],
@@ -108,6 +134,30 @@ export const mapConfig = {
           "text-halo-width": 1,
         },
       },
+      {
+        id: "public.test_weather_stations",
+        source: config.sourceNames.weatherStations,
+        type: "circle",
+        "source-layer": config.sourceLayers.weatherStations,
+        paint: {
+          "circle-radius": 6,
+          "circle-color": "red",
+        },
+        minzoom: 4,
+        maxzoom: 22,
+      },
+      // {
+      //   id: "public.get_ws_days_by_temp_range",
+      //   source: config.sourceNames.weatherStationsDaysByTempRange,
+      //   type: "circle",
+      //   "source-layer": config.sourceLayers.weatherStationsDaysByTempRange,
+      //   paint: {
+      //     "circle-radius": 10,
+      //     "circle-color": "red",
+      //   },
+      //   minzoom: 4,
+      //   maxzoom: 22,
+      // },
     ],
   },
   center: config.usCenter,
