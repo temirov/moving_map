@@ -15,6 +15,15 @@
     },
     "us-counties": {
       "mbtiles": "tl_2023_us_county.mbtiles"
+    },
+    "us-zip-codes": {
+      "mbtiles": "tl_2023_us_zcta520.mbtiles"
+    },
+    "countries": {
+      "mbtiles": "ne_10m_admin_0_countries.mbtiles"
+    },
+    "us_coastline": {
+      "mbtiles": "tl_2023_us_coastline.mbtiles"
     }
   }
 }
