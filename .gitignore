@@ -9,3 +9,4 @@ nominatim-*/
 node_modules/
 fonts/
 data/src
+public/dist
