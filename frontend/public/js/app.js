@@ -70,13 +70,6 @@ geolocationControl.on("geolocationSuccess", (position) => {
 });
 
 map.on("load", () => {
-  if (
-    !map.getSource("us_counties") ||
-    !map.getSource("us_counties_centroids")
-  ) {
-    console.error("Vector source not found or failed to load");
-  }
-
   // Add top-left custom controls (Home, Geolocate, Search)
   map.addControl(homeControl, "top-left");
   // Add GeolocationControl to the map

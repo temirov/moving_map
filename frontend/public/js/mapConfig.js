@@ -3,21 +3,25 @@ const vectorServer = "https://computercat:8443/pg_tileserv/";
 const fontServer = "https://computercat:8443/tileserver/";
 const nominatimServer = "https://computercat:8443/nominatim/";
 
+// Source names
 const sourceNames = {
   usCounties: "public.us_counties", // Actual source-layer name for counties
   usCountiesCentroids: "public.us_counties_centroids", // Actual source-layer name for centroids
   weatherStations: "public.test_weather_stations",
   weatherStationsDaysByTempRange: "public.get_ws_days_by_temp_range",
+  tmpWeatherTest: "public.tmp_weather_test",
 };
 
+// Source layers
 const sourceLayers = {
   usCounties: "public.us_counties",
   usCountiesCentroids: "public.us_counties_centroids",
   weatherStations: "weather_stations_layer",
   weatherStationsDaysByTempRange: "ws_stations_layer",
+  tmpWeatherTest: "public.tmp_weather_test",
 };
 
-// Build the URLs dynamically
+// Function to build tile URLs dynamically
 const buildTileUrl = (sourceName, props) =>
   `${vectorServer}/${sourceName}/{z}/{x}/{y}.pbf${props}`;
 
@@ -36,6 +40,10 @@ const vectorUrls = {
     sourceNames.weatherStationsDaysByTempRange,
     ""
   ),
+  tmpWeatherTest: buildTileUrl(
+    sourceNames.tmpWeatherTest,
+    "?properties=avg_matching_days_per_year"
+  ),
 };
 
 // Configuration for map and sources
@@ -46,6 +54,7 @@ export const config = {
     usCountiesCentroids: vectorUrls.usCountiesCentroids,
     weatherStations: vectorUrls.weatherStations,
     weatherStationsDaysByTempRange: vectorUrls.weatherStationsDaysByTempRange,
+    tmpWeatherTest: vectorUrls.tmpWeatherTest,
   },
   nominatimServer: {
     url: nominatimServer,
@@ -78,18 +87,12 @@ export const mapConfig = {
         minzoom: 4,
         maxzoom: 22,
       },
-      [config.sourceNames.weatherStations]: {
+      [config.sourceNames.tmpWeatherTest]: {
         type: "vector",
-        tiles: [config.vectorSources.weatherStations],
+        tiles: [config.vectorSources.tmpWeatherTest],
         minzoom: 4,
         maxzoom: 22,
       },
-      // [config.sourceNames.weatherStationsDaysByTempRange]: {
-      //   type: "vector",
-      //   tiles: [config.vectorSources.weatherStationsDaysByTempRange],
-      //   minzoom: 4,
-      //   maxzoom: 22,
-      // },
       "carto-light": {
         type: "raster",
         tiles: [
@@ -101,6 +104,7 @@ export const mapConfig = {
       },
     },
     layers: [
+      // Basemap Raster Layer
       {
         id: "carto-light-layer",
         source: "carto-light",
@@ -134,30 +138,29 @@ export const mapConfig = {
           "text-halo-width": 1,
         },
       },
+      // Choropleth Layer
       {
-        id: "public.test_weather_stations",
-        source: config.sourceNames.weatherStations,
-        type: "circle",
-        "source-layer": config.sourceLayers.weatherStations,
-        paint: {
-          "circle-radius": 6,
-          "circle-color": "red",
-        },
+        id: "us-voronoi-choropleth",
+        type: "fill",
+        source: config.sourceNames.tmpWeatherTest,
+        "source-layer": config.sourceLayers.tmpWeatherTest,
         minzoom: 4,
         maxzoom: 22,
+        paint: {
+          "fill-color": [
+            "interpolate",
+            ["linear"],
+            ["to-number", ["get", "avg_matching_days_per_year"]],
+            0,
+            "white",
+            178,
+            "#CFFDBC",
+            365,
+            "#66FF00",
+          ],
+          "fill-opacity": 0.5,
+        },
       },
-      // {
-      //   id: "public.get_ws_days_by_temp_range",
-      //   source: config.sourceNames.weatherStationsDaysByTempRange,
-      //   type: "circle",
-      //   "source-layer": config.sourceLayers.weatherStationsDaysByTempRange,
-      //   paint: {
-      //     "circle-radius": 10,
-      //     "circle-color": "red",
-      //   },
-      //   minzoom: 4,
-      //   maxzoom: 22,
-      // },
     ],
   },
   center: config.usCenter,
