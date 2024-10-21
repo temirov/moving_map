@@ -69,6 +69,13 @@ geolocationControl.on("geolocationSuccess", (position) => {
   }
 });
 
+// Update zoom level display
+function updateZoomLevel() {
+  document.getElementById('zoom-level').textContent = `Zoom Level: ${map.getZoom()}`;
+}
+map.on('zoomend', updateZoomLevel);
+updateZoomLevel();
+
 map.on("load", () => {
   // Add top-left custom controls (Home, Geolocate, Search)
   map.addControl(homeControl, "top-left");

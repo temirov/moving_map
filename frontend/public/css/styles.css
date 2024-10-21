@@ -1,13 +1,16 @@
-body {
+/* Ensure html and body take up the full viewport height */
+html, body {
+    height: 100%;
     margin: 0;
     padding: 0;
 }
 
 #map {
-    position: absolute;
-    top: 0;
-    bottom: 0;
+    position: relative;
     width: 100%;
+    height: 100%;
+    /* If needed, adjust the bottom to account for the zoom-level strip */
+    padding-bottom: 20px;
 }
 
 #controls {
@@ -36,4 +39,17 @@ body {
 .maplibre-gl-home i {
     font-size: 18px;
     color: #333;
+}
+
+#zoom-level {
+    position: fixed;   /* Positions the element relative to the viewport */
+    bottom: 0;         /* Anchors it to the bottom */
+    left: 0;
+    width: 100%;
+    height: 20px;      /* Set the height of your bottom strip */
+    background-color: white;
+    padding-left: 10px;
+    display: flex;
+    align-items: center;  /* Vertically centers the content */
+    font-size: 14px;
 }
