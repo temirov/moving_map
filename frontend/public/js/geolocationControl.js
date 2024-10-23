@@ -12,7 +12,6 @@ class GeolocationControl {
               <i class="fas fa-location-arrow"></i>
           </button>`;
     this._container.querySelector("button").onclick = () => {
-      this.map.fire("click", this._container); // Emit a click event for button styling (optional)
       this.getUserLocation();
     };
 

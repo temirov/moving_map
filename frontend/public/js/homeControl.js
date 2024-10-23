@@ -9,7 +9,6 @@ class HomeControl {
             <i class="fas fa-home"></i>
         </button>`;
         this._container.querySelector('button').onclick = () => {
-            this.map.fire('click', this._container); // Emit a click event for button styling (optional)
             this.map.fire('home'); // Emit 'home' event when clicked
         };
         return this._container;
